@@ -11,3 +11,5 @@ set. This is done by forking a number of times to get multiple processes to spee
 ### Discussion of Results
 The graph shows what looks like an exponential decay. As the number of processes increases the time it takes to 
 complete the set decreases. But like previously mentioned the decay is exponential as it decreases most by adding a few extra processes but there seems to be diminishing returns as more processes are added. 
+
+NOTE: I used the .mp4 extension as .mpg was not running on my computer
