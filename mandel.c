@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <pthread.h>
 #include "jpegrw.h"
 
 #define NUM_FRAMES 50
@@ -17,9 +18,17 @@
 // local routines
 static int iteration_to_color( int i, int max );
 static int iterations_at_point( double x, double y, int max );
-static void compute_image( imgRawImage *img, double xmin, double xmax,
-									double ymin, double ymax, int max );
+static void *compute_image(void *arg);
 static void show_help();
+
+typedef struct thread_args {
+	imgRawImage* img;
+	double xmin;
+	double xmax;
+	double ymin;
+	double ymax;
+	int max;
+} thread_args;
 
 int main( int argc, char *argv[] )
 {
@@ -38,13 +47,17 @@ int main( int argc, char *argv[] )
 	int    image_height = 1000;
 	int    max = 1000;
 	int    num_children = 1;
+	int    num_threads = 1;
 
 	// For each command line argument given,
 	// override the appropriate configuration value.
 
-	while((c = getopt(argc,argv,"c:x:y:s:W:H:m:o:h"))!=-1) {
+	while((c = getopt(argc,argv,"t:c:x:y:s:W:H:m:o:h"))!=-1) {
 		switch(c) 
 		{
+			case 't':
+				num_threads = atoi(optarg);
+				break;
 			case 'c':
 				num_children = atoi(optarg);
 				break;
@@ -136,9 +149,29 @@ int main( int argc, char *argv[] )
                 // Fill it with black
                 setImageCOLOR(img, 0);
 
+				pthread_t threads[num_threads];
+				pthread_t threads_ids[num_threads];
+				thread_args params;
+				params.img = img;
+				params.xmin = xcenter - xscale / 2;
+				params.xmax = xcenter + xscale / 2;
+				params.ymin = ycenter - yscale / 2;
+				params.ymax = ycenter + yscale / 2;
+				params.max = max;
+
+				for (int t = 0; t < num_threads; t++)
+				{
+					threads_ids[num_threads] = t;
+					pthread_create(&threads[t], NULL, compute_image, &params);
+				}
+
+				for (int i = 0; i < num_threads; i++)
+				{
+					pthread_join(threads[i], NULL);
+				}
                 // Compute the Mandelbrot image
-                compute_image(img, xcenter - xscale / 2, xcenter + xscale / 2, 
-                              ycenter - yscale / 2, ycenter + yscale / 2, max);
+                // compute_image(img, xcenter - xscale / 2, xcenter + xscale / 2, 
+                //               ycenter - yscale / 2, ycenter + yscale / 2, max);
 
                 // Save the image in the stated file.
                 storeJpegImageFile(img, outfile);
@@ -190,15 +223,23 @@ int iterations_at_point( double x, double y, int max )
 
 /*
 Compute an entire Mandelbrot image, writing each point to the given bitmap.
-Scale the image to the range (xmin-xmax,ymin-ymax), limiting iterations to "max"
-*/
+Scale the image to the range (xmin-xmax,ymin-ymax), limiting iterations to "max".
 
-void compute_image(imgRawImage* img, double xmin, double xmax, double ymin, double ymax, int max )
+NOTE: the asterisk before compute_image allows it to be based in as a parameter the pthread_create 
+*/
+void *compute_image(void *arg)
 {
+	/*
+		*args is a void pointer, the compiler only knows it points to some address
+		by doing the line below it creates a new pointer to the same address but this time
+		specifiy that it is of struct thread_arg type.
+	*/
+	thread_args *args = (thread_args *)arg;
+
 	int i,j;
 
-	int width = img->width;
-	int height = img->height;
+	int width = args->img->width;
+	int height = args->img->height;
 
 	// For every pixel in the image...
 
@@ -207,18 +248,18 @@ void compute_image(imgRawImage* img, double xmin, double xmax, double ymin, doub
 		for(i=0;i<width;i++) {
 
 			// Determine the point in x,y space for that pixel.
-			double x = xmin + i*(xmax-xmin)/width;
-			double y = ymin + j*(ymax-ymin)/height;
+			double x = args->xmin + i*(args->xmax-args->xmin)/width;
+			double y = args->ymin + j*(args->ymax-args->ymin)/height;
 
 			// Compute the iterations at that point.
-			int iters = iterations_at_point(x,y,max);
+			int iters = iterations_at_point(x,y,args->max);
 
 			// Set the pixel in the bitmap.
-			setPixelCOLOR(img,i,j,iteration_to_color(iters,max));
+			setPixelCOLOR(args->img,i,j,iteration_to_color(iters,args->max));
 		}
 	}
+	return NULL;
 }
-
 
 /*
 Convert a iteration number to a color.
@@ -244,7 +285,8 @@ void show_help()
 	printf("-W <pixels>   Width of the image in pixels. (default=1000)\n");
 	printf("-H <pixels>   Height of the image in pixels. (default=1000)\n");
 	printf("-o <file>     Set output file. (default=mandel.bmp)\n");
-	printf("-c <children> Number of children used to create the 50 frames for the mandel movie (default=1)\n");
+	printf("-c <children> Number of children used to create the 50 frames for the mandel movie. (default=1)\n");
+	printf("-t <threads>  Number of threads used to create a single image. (default=1)\n");
 	printf("-h          Show this help text.\n");
 	printf("\nSome examples are:\n");
 	printf("mandel -x -0.5 -y -0.5 -s 0.2\n");
