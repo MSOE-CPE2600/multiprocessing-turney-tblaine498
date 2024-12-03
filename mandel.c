@@ -21,6 +21,7 @@ static int iterations_at_point( double x, double y, int max );
 static void *compute_image(void *arg);
 static void show_help();
 
+// Struct used to pass variables into compute_image
 typedef struct thread_args {
 	imgRawImage* img;
 	double xmin;
@@ -28,6 +29,8 @@ typedef struct thread_args {
 	double ymin;
 	double ymax;
 	int max;
+	int start_row;
+	int end_row;
 } thread_args;
 
 int main( int argc, char *argv[] )
@@ -91,7 +94,13 @@ int main( int argc, char *argv[] )
 
     // Split the iterations among multiple processes
     int iterations_per_process = NUM_FRAMES / num_children;
-	int remainder = NUM_FRAMES % num_children;  // Remainder to distribute
+	int remainder_process = NUM_FRAMES % num_children;  // Remainder to distribute
+
+	// Split the iterations among mulitple threads
+	pthread_t threads[num_threads];
+	thread_args thread_params[num_threads];
+	int iterations_per_thread = image_height / num_threads;
+	int remainder_threads = image_height % num_threads;  // Remainder to distribute
 	
 	for (int p = 0; p < num_children; p++)
 	{
@@ -107,21 +116,21 @@ int main( int argc, char *argv[] )
         if (pid == 0)
 		{
 			// Calculate the start and end indices for each process
-			int extra_iterations = 0;
-			if (p < remainder)
+			int extra_iterations_process = 0;
+			if (p < remainder_process)
 			{
-				extra_iterations = p;
+				extra_iterations_process = p;
 			} 
 			else 
 			{
-				extra_iterations = remainder;
+				extra_iterations_process = remainder_process;
 			}
 
-			int start = p * iterations_per_process + extra_iterations + 1;  // Start index with extra iterations
+			int start = p * iterations_per_process + extra_iterations_process + 1;  // Start index with extra iterations
 			int end = start + iterations_per_process - 1;  // Default end index based on iterations per process
 
 			// Add one more iteration for processes with remainder
-			if (p < remainder)
+			if (p < remainder_process)
 			{
 				end++;
 			}
@@ -149,30 +158,47 @@ int main( int argc, char *argv[] )
                 // Fill it with black
                 setImageCOLOR(img, 0);
 
-				pthread_t threads[num_threads];
-				pthread_t threads_ids[num_threads];
-				thread_args params;
-				params.img = img;
-				params.xmin = xcenter - xscale / 2;
-				params.xmax = xcenter + xscale / 2;
-				params.ymin = ycenter - yscale / 2;
-				params.ymax = ycenter + yscale / 2;
-				params.max = max;
-
 				for (int t = 0; t < num_threads; t++)
 				{
-					threads_ids[num_threads] = t;
-					pthread_create(&threads[t], NULL, compute_image, &params);
+					// Standard parameters for each thread
+					thread_params[t].img = img;
+					thread_params[t].xmin = xcenter - xscale / 2;
+					thread_params[t].xmax = xcenter + xscale / 2;
+					thread_params[t].ymin = ycenter - yscale / 2;
+					thread_params[t].ymax = ycenter + yscale / 2;
+					thread_params[t].max = max;
+					
+					// Determines if extra iterations are needed based on the remainder
+					int extra_iterations_threads = 0;
+					if (t < remainder_threads)
+					{
+						extra_iterations_threads = t;
+					} 
+					else 
+					{
+						extra_iterations_threads = remainder_threads;
+					}
+
+					// Sets the start/end index
+					thread_params[t].start_row = t * iterations_per_thread + extra_iterations_threads;
+					thread_params[t].end_row = thread_params[t].start_row + iterations_per_thread - 1;
+
+					// Add one more iteration for threads with remainder
+					if (t < remainder_threads)
+					{
+						thread_params[t].end_row++;
+					}
+
+					// Creates thread
+					pthread_create(&threads[t], NULL, compute_image, &thread_params[t]);
 				}
 
-				for (int i = 0; i < num_threads; i++)
+				// Waits for all threads to finish
+				for (int t = 0; t < num_threads; t++)
 				{
-					pthread_join(threads[i], NULL);
+					pthread_join(threads[t], NULL);
 				}
-                // Compute the Mandelbrot image
-                // compute_image(img, xcenter - xscale / 2, xcenter + xscale / 2, 
-                //               ycenter - yscale / 2, ycenter + yscale / 2, max);
-
+				
                 // Save the image in the stated file.
                 storeJpegImageFile(img, outfile);
 
@@ -243,7 +269,7 @@ void *compute_image(void *arg)
 
 	// For every pixel in the image...
 
-	for(j=0;j<height;j++) {
+	for(j=args->start_row;j<=args->end_row;j++) {
 
 		for(i=0;i<width;i++) {
 

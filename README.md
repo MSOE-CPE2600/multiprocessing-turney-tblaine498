@@ -1,3 +1,15 @@
+# System Programming Lab 12 Multithreading
+
+### Overview of Updated Program
+The new program now makes use of multithreading on top of the previous implementation of multiprocessing. Now it can split each image into multiple parts and have the threads complete a single part of it. This as shown below can further improve the runtimes.
+
+### Table of Results
+![Table Screenshot](CPE2600_lab12.png)
+
+### Discussion of Results
+1. Looking at the table above, one can see that multiprocessing and multithreading on there own are very similar. With that said, I would say multithreading has a slight edge on performance. I would assume that it is better because the picture can be easliy split into many parts, like how the lab assignment said it's "embarrassingly parallel". 
+2. The "sweet spot" was really anywhere in the bottom right hand corner of the table. Eventually, one can see they are all within about a second or two of each other. 
+
 # System Programming Lab 11 Multiprocessing
 
 ### Overview of Program
