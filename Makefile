@@ -1,3 +1,7 @@
+# Modified by: Tyler Blaine
+# Assignments: 11/12
+# Section: CPE2600 111
+
 CC=gcc
 CFLAGS=-c -Wall -g
 LDFLAGS=-ljpeg -lm

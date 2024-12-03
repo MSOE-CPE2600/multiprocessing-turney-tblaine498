@@ -1,4 +1,10 @@
 /// 
+// Modified by: Tyler Blaine
+// Assignments: 11/12
+// Section: CPE2600 111
+//
+//
+//
 //  mandel.c
 //  Based on example code found here:
 //  https://users.cs.fiu.edu/~cpoellab/teaching/cop4610_fall22/project3.html

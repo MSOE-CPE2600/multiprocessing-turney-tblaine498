@@ -1,4 +1,5 @@
 # System Programming Lab 12 Multithreading
+#### By: Tyler Blaine
 
 ### Overview of Updated Program
 The new program now makes use of multithreading on top of the previous implementation of multiprocessing. Now it can split each image into multiple parts and have the threads complete a single part of it. This as shown below can further improve the runtimes.
@@ -11,6 +12,7 @@ The new program now makes use of multithreading on top of the previous implement
 2. The "sweet spot" was really anywhere in the bottom right hand corner of the table. Eventually, one can see they are all within about a second or two of each other. 
 
 # System Programming Lab 11 Multiprocessing
+#### By: Tyler Blaine
 
 ### Overview of Program
 The edited mandel.c program creates a sequence of images of the Mandelbrot set. It takes in a bunch
